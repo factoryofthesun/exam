@@ -1,0 +1,25 @@
+                       OLS Regression Results                      
+Dep. Variable:   ,Y               ,  R-squared:         ,   1.000  
+Model:           ,OLS             ,  Adj. R-squared:    ,   1.000  
+Method:          ,Least Squares   ,  F-statistic:       ,2.230e+32 
+Date:            ,Fri, 13 Nov 2020,  Prob (F-statistic):,  0.00    
+Time:            ,13:46:45        ,  Log-Likelihood:    ,  29916.  
+No. Observations:,  1000          ,  AIC:               ,-5.982e+04
+Df Residuals:    ,   996          ,  BIC:               ,-5.980e+04
+Df Model:        ,     3          ,                     ,          
+Covariance Type: ,nonrobust       ,                     ,          
+      ,   coef   , std err ,    t    ,P>|t| ,  [0.025 ,  0.975] 
+const , 9.881e-15, 2.19e-15,    4.502, 0.000, 5.57e-15, 1.42e-14
+1     ,   47.0000, 2.03e-15, 2.31e+16, 0.000,   47.000,   47.000
+2     ,   30.0000, 2.05e-15, 1.47e+16, 0.000,   30.000,   30.000
+prob_1, 6.994e-15, 4.51e-15,    1.549, 0.122,-1.86e-15, 1.59e-14
+prob_2,  2.42e-14, 4.51e-15,    5.362, 0.000, 1.53e-14, 3.31e-14
+Omnibus:      ,236.266,  Durbin-Watson:     ,   2.094
+Prob(Omnibus):, 0.000 ,  Jarque-Bera (JB):  , 162.154
+Skew:         , 0.875 ,  Prob(JB):          ,6.15e-36
+Kurtosis:     , 2.088 ,  Cond. No.          ,6.32e+16
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+[2] The smallest eigenvalue is 3.16e-31. This might indicate that there are
+strong multicollinearity problems or that the design matrix is singular.

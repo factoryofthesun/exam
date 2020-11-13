@@ -69,6 +69,9 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
     # total capacity >= n_subjects
     if np.sum(capacity) < n_subjects:
         raise ValueError(f"compute_probs: total capacity must be greater than or equal to total # subjects {n_subjects}")
+    # budget must be positive
+    if budget <= 0:
+        raise ValueError(f"compute_probs: budget must be positive")
 
     # TODO: Figure out optimal beta scaling factor
     beta_scaling_factor = budget/50
@@ -85,19 +88,22 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
 
     return res
 
-def assign(probs: Sequence, treatment_labels: Sequence = None, participant_ids: Sequence = None, save_path: str = None):
+def assign(probs: Sequence, treatment_labels: Sequence = None, subject_ids: Sequence = None, save_path: str = None,
+           seed: int = None):
     """Assign treatments given set of probabilities
 
     Parameters
     ----------
     probs: array-like
-        Array of treatment assignment probabilites for each participant
+        Array of treatment assignment probabilites for each suvhect
     treatment_labels: array-like, default: None
         Treatment labels for recording assignment. Default is 0,1,...
-    participant_ids: array-like, default: None
+    subject_ids: array-like, default: None
         Ids to set as the index of the output dataframe. Default is the default pandas index.
-    save_path: str
+    save_path: str, default: None
         String path to save assignments file to CSV.
+    seed: int, default: None
+        Numpy seed
 
     Returns
     -----------
@@ -109,9 +115,12 @@ def assign(probs: Sequence, treatment_labels: Sequence = None, participant_ids: 
     if treatment_labels is None:
         treatment_labels = range(probs.shape[1])
 
+    if seed is not None:
+        np.random.seed(seed)
+
     # Assign treatments
     assignments = np.apply_along_axis(lambda p: np.random.choice(treatment_labels, p = p), 1, probs)
-    assignment_df = pd.DataFrame(assignments, index = participant_ids, columns = treatment_labels)
+    assignment_df = pd.DataFrame(assignments, index = subject_ids, columns = ['assignment'])
 
     if save_path is not None:
         assignment_df.to_csv(save_path)

@@ -56,7 +56,6 @@ def get_demand_matrix(wtp_matrix, pte_matrix, price_matrix,  subject_budgets, rc
         q_max = max((1 - epsilon - max_prob)/(rct_treatment_probabilities - max_prob))
         q = max(q_min, q_max)
         demand_matrix = (1-q) * demand_matrix + q * rct_treatment_probabilities
-        print(f"Demand matrix shape after bounds adjustment: {demand_matrix.shape}")
         return demand_matrix
 
 # Clearing error in market = sqrt(sum of excess_demand(t)^2 for every treatment t)
@@ -88,8 +87,8 @@ def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.nd
                                     rct_treatment_probabilities, epsilon)
 
     iterations = 0
-    alpha_star = 0
-    beta_star = 0
+    alpha_star = alpha
+    beta_star = beta
 
     # Linprog will return NA if unable to solve
     if np.isnan(demand_matrix).any():
