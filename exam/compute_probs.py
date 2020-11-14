@@ -1,3 +1,4 @@
+"""Compute probabilities and assign treatment"""
 import numpy as np
 import pandas as pd
 from typing import Tuple, Dict, Set, Union, Sequence, Optional

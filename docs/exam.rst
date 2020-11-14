@@ -1,10 +1,8 @@
-MLISNE API Reference
+EXAM API Reference
 ====================
 
-Modules
----------
-.. autosummary::
-   :toctree: _autosummary
+.. automodule:: exam.compute_probs
+   :members:
 
-   exam.compute_probs
-   exam.estimate_effects
+.. automodule:: exam.estimate_effects
+  :members:
