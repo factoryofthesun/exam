@@ -4,6 +4,7 @@ import numpy as np
 from typing import Tuple, Dict, Set, Union, Sequence, Optional
 import statsmodels.api as sm
 from scipy import stats
+import warnings
 
 def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = None, control: str = None,
                      method: str = "matched", save_path: str = None, return_model: bool = True, verbose=True):
@@ -58,10 +59,10 @@ def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = No
     probs_df.columns = prob_names
     if X is not None:
         df = pd.concat([df, D_dums, probs_df, pd.DataFrame(X)], axis=1)
-        df = sm.add_constant(df, has_constant = 'add')
+        df = sm.add_constant(df, has_constant = 'add', prepend = False)
     else:
         df = pd.concat([df, D_dums, probs_df], axis=1)
-        df = sm.add_constant(df, has_constant = 'add')
+        df = sm.add_constant(df, has_constant = 'add', prepend = False)
 
     # Estimation
     treatment_names = D_dums.columns
@@ -101,9 +102,8 @@ def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = No
             print(ols_res.summary())
 
         if save_path is not None:
-            #TODO: MORE COMPREHENSIVE SAVE OUTPUT FOR COMMAND LINE INTERFACE
             out_str = ols_res.summary().as_csv()
-            with open("test_data/test_single.csv", 'w') as f:
+            with open(save_path, 'w') as f:
                 f.write(out_str)
 
         return final_out
@@ -117,8 +117,26 @@ def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = No
         model_dict = dict()
         cate_dict = dict()
         variances = []
-        # Separate propensity subpopulation regressions
+
+        # Will index by propensity score vectors
         df = df.set_index(prob_names)
+
+        # Drop all subpopulations where design matrix is rank-deficient
+        n_drop = 0
+        bad_p = []
+        for p in delta_df.index:
+            tmp_df = df.loc[p,]
+            if np.linalg.matrix_rank(tmp_df) < len(tmp_df.columns):
+                n_drop += len(tmp_df)
+                bad_p.append(p)
+        if n_drop > 0:
+            print(f"Total rank-deficient samples dropped: {n_drop}")
+
+        # Reset delta weights
+        delta_df = delta_df.drop(bad_p)
+        delta_df = delta_df/delta_df.sum()
+
+        # Separate propensity subpopulation regressions
         ate = pd.Series([0]*len(treatment_names), index = treatment_names, name = 'coef', dtype="float64")
         for p in delta_df.index:
             # Subset propensity sample
@@ -160,15 +178,85 @@ def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = No
             final_out['model'] = model_dict
 
         if verbose == True:
-            print(f"Estimated treatment effects: {ate}")
-            print(f"P-values: {p}")
+            print(f"Estimated treatment effects:\n{ate}")
+            print(f"P-values:\n{p}")
 
         if save_path is not None:
             #TODO: MORE COMPREHENSIVE SAVE OUTPUT FOR COMMAND LINE INTERFACE
             pass
 
         return final_out
+def _get_args():
+    import argparse
+    """Parse commandline."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="Path to CSV containing experimental outcomes Y, treatment assignments D, and any controls X, in that order.")
+    parser.add_argument(
+        "--probs",
+        type=str,
+        required=True,
+        help="Path to CSV containing treatment probabilities."
+        )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        help="Path to save CSV file with estimation output."
+        )
+    parser.add_argument(
+        "--control",
+        type=str,
+        required=False,
+        help="Name of column of control treatment."
+        )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="matched",
+        required=False,
+        help="Method to apply to estimation. Either 'matched' or 'single'."
+        )
+    parser.add_argument(
+        "--dindex",
+        action="store_true",
+        help="Flag to indicate whether 'data' file has an index column."
+        )
+    parser.add_argument(
+        "--pindex",
+        action="store_true",
+        help="Flag to indicate whether 'probs' file has index column."
+        )
+    parser.add_argument(
+        "--noverb",
+        action="store_false",
+        help="Flag to turn off printing estimation results to stdout."
+        )
+
+    args = parser.parse_args()
+
+    return args
 
 if __name__ == "__main__":
-    # RUN COMMAND LINE ARGUMENTS
-    pass
+    args = _get_args()
+    if args.dindex == True:
+        data = pd.read_csv(args.data, index_col = 0)
+    else: data = pd.read_csv(args.data)
+    if args.pindex == True:
+        probs = pd.read_csv(args.probs, index_col = 0)
+    else: probs = pd.read_csv(args.probs)
+
+    if len(data.columns) < 2:
+        raise ValueError("estimate_effects: experimental output data must have at least 2 columns for Y and D.")
+    Y = data.iloc[:,0]
+    D = data.iloc[:,1]
+    if len(data.columns) > 2:
+        X = data.iloc[:,2:]
+    else:
+        X = None
+
+    est = estimate_effects(Y = Y, D = D, probs = probs, X = X, control = args.control,
+                         method = args.method, save_path = args.output, verbose=args.noverb)

@@ -37,8 +37,8 @@ Please see below for minimal examples of the full EXAM pipeline using the API or
 
 .. code-block:: bash
 
-  python compute_probs.py --wtp wtp_file.csv --predicted_effects pte_file.csv --output computed_probs.csv --assign_output assignments.csv
-  python estimate_effects.py --Y outcomes_file.csv --D assignments.csv --probs computed_probs.csv --output effects_output.csv
+  python compute_probs.py --data wtp_pte_data.csv --output computed_probs.csv --assign_output assignments.csv
+  python estimate_effects.py --data outcome_data.csv --probs computed_probs.csv --output effects_output.csv
 
 The following covers each interface in greater detail.
 
@@ -134,5 +134,21 @@ Command-Line Tool
 Compute Treatment Probabilities and Assignment
 -----------------------------------------------
 
+The script ``compute_probs.py`` can also be called from the command line to compute welfare-optimal treatment probabilities. The required input is the path to a saved CSV file with WTP and PTE data, in that order, passed to ``--data``. The computed probabilities will be saved to ``--output``, and treatment assignments to ``--assign_output``. Below is an example demonstrating all the possible parameters that can be set.
+
+.. code-block:: bash
+
+  # For command line documentation
+  python compute_probs.py -h
+  python compute_probs.py --data wtp_pte_data.csv --output computed_probs.csv --assign_output assignments.csv --capacity 100 50 50 --pbound 0.2 --error 0.1 --iterations 20 --budget 100 --subject_budgets budgets.csv --labels control t1 t2 --index
+
 Estimate Treatment Effects
 --------------------------------
+
+Similarly, the script ``estimate_effects.py`` can be called from the command line to compute treatment effects. The required inputs are the path to a saved CSV file with the experiment outcome data with the outcome variable, treatment assignments, and controls, in that order, and the path to a saved CSV file with the previously computed treatment probabilities. Below is an example demonstrating all the possible parameters that can be set.
+
+.. code-block:: bash
+
+  # For command line documentation
+  python estimate_effects.py -h
+  python estimate_effects.py --data outcomes.csv --probs computed_probs.csv --output est_effects.csv --control control --method matched --dindex --pindex --noverb

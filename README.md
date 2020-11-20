@@ -146,6 +146,8 @@ labelled_assignments = assign(probs, subject_ids = ['id0', 'id1', ...], treatmen
 
 After assigning treatments and running the experiment, the `estimate_effects` function computes an unbiased estimate of the treatment effects. The function offers two estimation methods as outlined in [[1]](#1), where "matched" computes the weighted average of estimated coefficients for each propensity-score (probability) matched subpopulation, and "single" estimates a single OLS regression controlling for treatment probabilities. The former produces an unbiased estimate of the ATE (average treatment effect) for each treatment, whereas the latter produces an unbiased estimate of a well-defined weighted average of the CATE (conditional average treatment effect) for each propensity-score subpopulation.
 
+**Note:** Subpopulations that result in a rank-deficient design matrix will be dropped from estimation. This may result in poor estimation if the propensity scores are not coarse enough.  
+
 ```python
 import pandas as pd
 import numpy as np
@@ -182,8 +184,22 @@ matched_estimate = estimate_effects(Y = Y, D = assignments, probs = treatment_pr
 ##Command-Line Tool
 
 ###Compute Treatment Probabilities and Assignment
+The script `compute_probs.py` can also be called from the command line to compute welfare-optimal treatment probabilities. The required input is the path to a saved CSV file with WTP and PTE data, in that order, passed to `--data`. The computed probabilities will be saved to `--output`, and treatment assignments to `--assign_output`. Below is an example demonstrating all the possible parameters that can be set.
+
+```bash
+  # For command line documentation
+  python compute_probs.py -h
+  python compute_probs.py --data wtp_pte_data.csv --output computed_probs.csv --assign_output assignments.csv --capacity 100 50 50 --pbound 0.2 --error 0.1 --iterations 20 --budget 100 --subject_budgets budgets.csv --labels control t1 t2 --index
+```
 
 ###Estimate Treatment Effects
+Similarly, the script `estimate_effects.py` can be called from the command line to compute treatment effects. The required inputs are the path to a saved CSV file with the experiment outcome data with the outcome variable, treatment assignments, and controls, in that order, and the path to a saved CSV file with the previously computed treatment probabilities. Below is an example demonstrating all the possible parameters that can be set.
+
+```bash
+  # For command line documentation
+  python estimate_effects.py -h
+  python estimate_effects.py --data outcomes.csv --probs computed_probs.csv --output est_effects.csv --control control --method matched --dindex --pindex --noverb
+```
 
 # Versioning
 

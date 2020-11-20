@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from typing import Tuple, Dict, Set, Union, Sequence, Optional
 from exam._utils import clear_market
+import warnings
+warnings.filterwarnings("ignore")
 
 def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence = None, probability_bound: float = 0,
                   error_threshold: float = 0.01, iterations_threshold: int = 20, budget: int = 100,
@@ -50,8 +52,10 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
     # Set subject budgets
     if subject_budgets is None:
         subject_budgets = np.array([budget] * n_subjects)
+        budget_setting = "constant"
     else:
         subject_budgets = np.array(subject_budgets)
+        budget_setting = "heterogeneous"
 
     # Set treatment capacities
     if capacity is None:
@@ -64,7 +68,6 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
 
     ## Input checking
     # probability_bound <= min(p_RCT)
-    print(f"Prob_bound: {probability_bound}, Min RCT prob: {np.min(rct_treatment_probabilities)}")
     if probability_bound > np.min(rct_treatment_probabilities) or probability_bound < 0:
         raise ValueError(f"compute_probs: probability bound must not be larger than the minimum RCT treatment probability {np.min(rct_treatment_probabilities)}")
     # total capacity >= n_subjects
@@ -75,7 +78,13 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
         raise ValueError(f"compute_probs: budget must be positive")
 
     # TODO: Figure out optimal beta scaling factor
-    beta_scaling_factor = budget/50
+    beta_scaling_factor = budget/100
+    import re
+    param_string = f"""# treatments: {n_treatments}\n# subjects: {n_subjects}\ncapacity: {capacity}\nepsilon-bound: {probability_bound}\nerror clearing threshold: {error_threshold}\niterations threshold: {iterations_threshold}\nbudget type: {budget_setting}\n"""
+    print("compute_probs: Parameters")
+    print("-"*50)
+    print(param_string)
+
     res = clear_market(wtp, predicted_effects, capacity, rct_treatment_probabilities, subject_budgets,
                         error_threshold, iterations_threshold, probability_bound, beta_scaling_factor)
     p_star = res['p_star']
@@ -86,6 +95,7 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
     # Save to csv
     if save_path is not None:
         res['p_star'].to_csv(save_path)
+        print(f"Treatment probabilities saved to: {save_path}")
 
     return res
 
@@ -112,7 +122,8 @@ def assign(probs: Sequence, treatment_labels: Sequence = None, subject_ids: Sequ
         Dataframe of assigned treatments
 
     """
-    probs = np.array(probs)
+    # Normalize probabilities to remove precision nonsense
+    probs = np.array(probs)/np.sum(probs, axis = 1)[:,np.newaxis]
     if treatment_labels is None:
         treatment_labels = range(probs.shape[1])
 
@@ -121,13 +132,107 @@ def assign(probs: Sequence, treatment_labels: Sequence = None, subject_ids: Sequ
 
     # Assign treatments
     assignments = np.apply_along_axis(lambda p: np.random.choice(treatment_labels, p = p), 1, probs)
-    assignment_df = pd.DataFrame(assignments, index = subject_ids, columns = ['assignment'])
+    assignment_df = pd.Series(assignments, index = subject_ids, name = "assignment")
 
     if save_path is not None:
-        assignment_df.to_csv(save_path)
+        assignment_df.to_csv(save_path, columns = ["assignment"])
+        print(f"Treatment assignments saved to: {save_path}")
 
     return assignment_df
 
+def _get_args():
+    import argparse
+    """Parse commandline."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="Path to CSV containing WTP and PTE, in that order. If --index flag toggled, the first column will be assumed to be the index containing subject ids. The columns will be taken to be treatment labels, unless otherwise specified in --labels.")
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        help="Path to save CSV file with treatment probabilities."
+        )
+    parser.add_argument(
+        "--assign_output",
+        type=str,
+        required=False,
+        help="Path to save CSV file with treatment assignments."
+        )
+    parser.add_argument(
+        "--capacity",
+        nargs="*",
+        type=int,
+        required=False,
+        help="List of treatment capacities (integer).")
+    parser.add_argument(
+        "--pbound",
+        type=float,
+        default=0,
+        required=False,
+        help="The minimum bound for any treatment assignment probability. All computed probabilities will be constrained within [e, 1-e] where e is the probability bound."
+        )
+    parser.add_argument(
+        "--error",
+        type=float,
+        default=0.01,
+        required=False,
+        help="Minimum market clearing error."
+        )
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=20,
+        required=False,
+        help="Maximum number of algorithm iterations before a new search is conducted.")
+    parser.add_argument(
+        "--budget",
+        type=int,
+        default=100,
+        required=False,
+        help="Common budget to distribute to every subject."
+        )
+    parser.add_argument(
+        "--subject_budgets",
+        type=str,
+        required=False,
+        help="Path to CSV file containing subject-specific budgets."
+        )
+    parser.add_argument(
+        "--labels",
+        nargs="*",
+        type=str,
+        required=False,
+        help="List of treatment labels."
+        )
+    parser.add_argument(
+        "--index",
+        action="store_true",
+        help="Flag to indicate data has index column to use "
+        )
+    args = parser.parse_args()
+
+    return args
+
 if __name__ == "__main__":
-    # RUN COMMAND LINE ARGUMENTS
-    pass
+    args = _get_args()
+    data = pd.read_csv(args.data, index_col=0)
+    # N Treatments is n columns/2
+    if len(data.columns) % 2 != 0:
+        raise ValueError("compute_probs: WTP and PTE have uneven treatment columns.")
+    wtp = data.iloc[:,:int(len(data.columns)/2)]
+    pte = data.iloc[:,int(len(data.columns)/2):]
+    subject_ids = data.index
+    if args.labels is None:
+        treatment_labels = data.columns[:int(len(data.columns)/2)]
+    else:
+        treatment_labels = args.labels
+
+    prob_res = compute_probs(wtp, pte, args.capacity, args.pbound, args.error, args.iterations,
+                             args.budget, args.subject_budgets, args.output, treatment_labels,
+                             subject_ids)
+
+    if args.assign_output is not None:
+        assignments = assign(prob_res['p_star'], treatment_labels, subject_ids, args.assign_output)
