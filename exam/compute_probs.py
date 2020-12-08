@@ -2,14 +2,14 @@
 import numpy as np
 import pandas as pd
 from typing import Tuple, Dict, Set, Union, Sequence, Optional
-from exam._utils import clear_market
+from exam._utils import clear_market, norm_round, clear_market_new
 import warnings
 warnings.filterwarnings("ignore")
 
 def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence = None, probability_bound: float = 0,
                   error_threshold: float = 0.01, iterations_threshold: int = 20, budget: int = 100,
-                  subject_budgets: Sequence = None, save_path: str = None, treatment_labels: Sequence = None,
-                  subject_ids: Sequence = None):
+                  subject_budgets: Sequence = None, round: int = None, save_path: str = None,
+                  treatment_labels: Sequence = None, subject_ids: Sequence = None, max_search: int = 100):
     """Given the market parameters, compute the equilibrium and return treatment assignment probabilities.
 
     Parameters
@@ -20,18 +20,20 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
         2-D array of participant estimated treatment effects
     capacity: array-like, default: None
         Capacity constraints for treatments.
-    probability_bound: float, default = 0
+    probability_bound: float, default: 0
         The minimum bound for any treatment assignment probability. All computed probabilities will be
         constrained within [:math:`\\epsilon`, :math:`1 - \\epsilon`] where :math:`\\epsilon` is the probability bound.
-    error_threshold: float, default = 0.01
+    error_threshold: float, default: 0.01
         The minimum market clearing error to satisfy the market clearing algorithm.
-    max_iterations: int, default = 10
+    max_iterations: int, default: 10
         The maximum number of iterations to run the market clearing algorithm before resetting the search.
-    budget: int, default = 100
+    budget: int, default: 100
         The budget to assign to each participant.
-    subject_budgets: list-like, default = None
+    subject_budgets: list-like, default: None
         An array of budgets if distributing budgets unequally among subjects.
-    save_path: str, default = None
+    round: int, default: None
+        Decimal places to round output probabilities, to ensure coarseness. Must be > 0.
+    save_path: str, default: None
         String path to save output probabilities to CSV.
     treatment_labels: array-like, default: None
         Treatment labels for recording assignment. Default is 0,1,...
@@ -42,6 +44,10 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
     -----------
     dict[str, any]
         Returns dict containing calculated treament probabilities for each participant ('p_star'), the optimized treatment-effect coefficient :math:`\\alpha*` ('alpha_star'), the vector of optimized treatment coefficients (:math:`\\beta_t*`) ('beta_star'), and the minimized market clearing error :math:`\\text{error}_{min}` ('error').
+
+    Notes
+    ------
+    The market equilibrium is computed iteratively by finding optimal \\alpha and \\beta_t such that prices :math:`\\pi_{ti} = \\alpha e_{ti} + \\beta_t` clear the market within a certain threshold. The iteration works by updating :math:`\\beta_t = \\beta_t(1 + \\lambda_t\\min(1, \\text{E}_t/\\text{C}_t))` where  :math:`\\text{E}_t` is excess demand for treatment t and :math:`\\text{C}_t` is the experimental capacity for treatment t. :math:`\\lambda_t` is a scaling factor computed as the absolute value of the mean of the ratio between the :math:`\\alpha` and :math:`\\beta` contributions to the price equation. In mathematical terms, :math:`\\lambda_t = |\\frac{1}{N}\\sum_{i = 1}^{N} \\alpha e_{ti}/\\beta_t |`.
 
     """
     wtp = np.array(wtp)
@@ -85,9 +91,21 @@ def compute_probs(wtp: Sequence, predicted_effects: Sequence, capacity: Sequence
     print("-"*50)
     print(param_string)
 
-    res = clear_market(wtp, predicted_effects, capacity, rct_treatment_probabilities, subject_budgets,
-                        error_threshold, iterations_threshold, probability_bound, beta_scaling_factor)
+    res = clear_market_new(wtp, predicted_effects, capacity, rct_treatment_probabilities, subject_budgets,
+                        error_threshold, iterations_threshold, probability_bound, max_search)
+
+    if res is None:
+        return None
+
     p_star = res['p_star']
+
+    # Round probabilities if necessary
+    if round is not None:
+        if round > 0:
+            print(f"Rounding probabilities to {round} decimals...")
+            p_star = np.apply_along_axis(lambda x: norm_round(x, round), 1, p_star)
+
+    #np.testing.assert_allclose(np.sum(p_star, axis = 1), np.ones(p_star.shape[0]), rtol=1e-5)
 
     # Cast numpy output to pandas
     res['p_star'] = pd.DataFrame(p_star, index = subject_ids, columns = treatment_labels)
@@ -201,6 +219,12 @@ def _get_args():
         help="Path to CSV file containing subject-specific budgets."
         )
     parser.add_argument(
+        "--round",
+        type=int,
+        required=False,
+        help="Decimal places to round optimal probabilities. Use to ensure coarseness of propensity vectors."
+        )
+    parser.add_argument(
         "--labels",
         nargs="*",
         type=str,
@@ -231,8 +255,8 @@ if __name__ == "__main__":
         treatment_labels = args.labels
 
     prob_res = compute_probs(wtp, pte, args.capacity, args.pbound, args.error, args.iterations,
-                             args.budget, args.subject_budgets, args.output, treatment_labels,
-                             subject_ids)
+                             args.budget, args.subject_budgets, args.round, args.output,
+                             treatment_labels, subject_ids)
 
     if args.assign_output is not None:
         assignments = assign(prob_res['p_star'], treatment_labels, subject_ids, args.assign_output)

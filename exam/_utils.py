@@ -70,14 +70,90 @@ def get_clearing_error(excess_demand, capacity):
         print(f"get_clearing_error: Clearing error: {clearing_error}")
         return clearing_error
 
-def get_beta_new(beta, excess_demand, beta_scaling_factor):
-    beta_new = beta + excess_demand * beta_scaling_factor
+# def get_beta_new(beta, excess_demand, beta_scaling_factor):
+#     beta_new = beta + excess_demand * beta_scaling_factor
+#     return beta_new
+#
+# # Find market clearing price vector. Iteratively adjust beta to minimize market clearing error.
+# def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.ndarray,
+#                 rct_treatment_probabilities: np.ndarray, subject_budgets: np.ndarray, clearing_error_threshold: int,
+#                 iterations_threshold: int, epsilon: float, beta_scaling_factor: float, max_search: int):
+#     # Initialize market prices and demand
+#     init_budget = subject_budgets[0]
+#     alpha = init_alpha(init_budget, wtp_matrix.shape[1])
+#     beta = init_beta(init_budget, wtp_matrix.shape[1])
+#     price_matrix = get_price_matrix(alpha, beta, pte_matrix)
+#     demand_matrix = get_demand_matrix(wtp_matrix, pte_matrix, price_matrix, subject_budgets,
+#                                     rct_treatment_probabilities, epsilon)
+#
+#     iterations = 0
+#     tot_search = 1
+#     alpha_star = alpha
+#     beta_star = beta
+#
+#     # Linprog will return NA if unable to solve
+#     if np.isnan(demand_matrix).any():
+#         minimum_clearing_error = 100
+#         iterations = iterations_threshold + 1
+#     else:
+#         treatment_demand = np.sum(demand_matrix, axis = 0)
+#         excess_demand = treatment_demand - capacity
+#         minimum_clearing_error = get_clearing_error(excess_demand, capacity)
+#
+#     # Set new prices to clear market
+#     while True:
+#         if iterations > iterations_threshold:
+#             tot_search += 1
+#             if tot_search > max_search:
+#                 print("Max search limit reached. Market clearing search was unable to converge.")
+#                 return None
+#             # New search start
+#             alpha = init_alpha(init_budget, wtp_matrix.shape[1])
+#             beta = init_beta(init_budget, wtp_matrix.shape[1])
+#             iterations = 0
+#             print("new search start")
+#         else:
+#             # Continue down current search
+#             beta = get_beta_new(beta, excess_demand, beta_scaling_factor)
+#
+#         price_matrix = get_price_matrix(alpha, beta, pte_matrix)
+#         demand_matrix = get_demand_matrix(wtp_matrix, pte_matrix, price_matrix, subject_budgets,
+#                                         rct_treatment_probabilities, epsilon)
+#
+#         # Linprog will return NA if unable to solve
+#         if np.isnan(demand_matrix).any():
+#             clearing_error = 100
+#             iterations = iterations_threshold + 1
+#         else:
+#             treatment_demand = np.sum(demand_matrix, axis = 0)
+#             excess_demand = treatment_demand - capacity
+#             clearing_error = get_clearing_error(excess_demand, capacity)
+#
+#         # Store parameter values for minimum clearing error
+#         if clearing_error < minimum_clearing_error:
+#             minimum_clearing_error = clearing_error
+#             alpha_star = alpha
+#             beta_star = beta
+#         # cleared the market!
+#         if minimum_clearing_error < clearing_error_threshold:
+#             break
+#         iterations += 1
+#
+#     print(f"Minimum clearing error: {minimum_clearing_error}")
+#     print(f"Alpha_star: {alpha_star}")
+#     print(f"Beta star: {beta_star}")
+#
+#     results_dict = {"p_star": demand_matrix, "error": minimum_clearing_error, "alpha_star": alpha_star, "beta_star": beta_star}
+#     return results_dict
+
+def get_beta_new(beta, excess_demand, l, capacity):
+    beta_new = beta * (1 + l * np.amin(np.column_stack([np.ones(len(excess_demand)), excess_demand/capacity]), axis=1))
     return beta_new
 
 # Find market clearing price vector. Iteratively adjust beta to minimize market clearing error.
 def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.ndarray,
                 rct_treatment_probabilities: np.ndarray, subject_budgets: np.ndarray, clearing_error_threshold: int,
-                iterations_threshold: int, epsilon: float, beta_scaling_factor: float):
+                iterations_threshold: int, epsilon: float, max_search: int):
     # Initialize market prices and demand
     init_budget = subject_budgets[0]
     alpha = init_alpha(init_budget, wtp_matrix.shape[1])
@@ -87,6 +163,7 @@ def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.nd
                                     rct_treatment_probabilities, epsilon)
 
     iterations = 0
+    tot_search = 1
     alpha_star = alpha
     beta_star = beta
 
@@ -102,6 +179,10 @@ def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.nd
     # Set new prices to clear market
     while True:
         if iterations > iterations_threshold:
+            tot_search += 1
+            if tot_search > max_search:
+                print("Max search limit reached. Market clearing search was unable to converge.")
+                return None
             # New search start
             alpha = init_alpha(init_budget, wtp_matrix.shape[1])
             beta = init_beta(init_budget, wtp_matrix.shape[1])
@@ -109,7 +190,8 @@ def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.nd
             print("new search start")
         else:
             # Continue down current search
-            beta = get_beta_new(beta, excess_demand, beta_scaling_factor)
+            l = np.abs(np.mean(alpha * wtp_matrix/beta, axis = 0))
+            beta = get_beta_new(beta, excess_demand, l, capacity)
 
         price_matrix = get_price_matrix(alpha, beta, pte_matrix)
         demand_matrix = get_demand_matrix(wtp_matrix, pte_matrix, price_matrix, subject_budgets,
@@ -140,3 +222,14 @@ def clear_market(wtp_matrix: np.ndarray, pte_matrix: np.ndarray, capacity: np.nd
 
     results_dict = {"p_star": demand_matrix, "error": minimum_clearing_error, "alpha_star": alpha_star, "beta_star": beta_star}
     return results_dict
+
+def norm_round(p, round):
+    p_res = p % 10**-round
+    p = np.round(p, round)
+    if np.sum(p) > 1:
+        adj_ind = p_res.argmin()
+        p[adj_ind] = p[adj_ind] - 10**-round
+    elif np.sum(p) < 1:
+        adj_ind = p_res.argmax()
+        p[adj_ind] = p[adj_ind] + 10**-round
+    return p
