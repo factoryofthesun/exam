@@ -9,8 +9,9 @@
 - [Installation](#installation)
   - [Requirements](#requirements)
 - [Usage](#usage)
-  - [API](#api)
-  - [Command Line](#command-line)
+  - [API](#python-api)
+  - [Command Line](#command-line-tool)
+  - [Futher Examples](#further-examples)
 - [Versioning](#versioning)
 - [Contributing](#contributing)
 - [Citation](#citation)
@@ -97,8 +98,8 @@ python estimate_effects.py --Y outcomes_file.csv --D assignments.csv --probs com
 ```
 
 The following covers each interface in greater detail.
-## Python
-###Compute Treatment Probabilities and Assignment
+## Python API
+### Compute Treatment Probabilities and Assignment
 
 The treatment probability calculation and assignment functions are `compute_probs` and `assign`, respectively. Below are some lines which demonstrate some of the key parameters for each function. Please refer to the API documentation for the full list of keyword parameters and output values.
 
@@ -142,7 +143,7 @@ default_assignments = assign(probs) # indices: 0,1,...; treatment labels: 0,1,..
 labelled_assignments = assign(probs, subject_ids = ['id0', 'id1', ...], treatment_labels = ['control', 'treatment1', 'treatment2', ...])
 ```
 
-###Estimate Treatment Effects
+### Estimate Treatment Effects
 
 After assigning treatments and running the experiment, the `estimate_effects` function computes an unbiased estimate of the treatment effects. The function offers two estimation methods as outlined in [[1]](#1), where "matched" computes the weighted average of estimated coefficients for each propensity-score (probability) matched subpopulation, and "single" estimates a single OLS regression controlling for treatment probabilities. The former produces an unbiased estimate of the ATE (average treatment effect) for each treatment, whereas the latter produces an unbiased estimate of a well-defined weighted average of the CATE (conditional average treatment effect) for each propensity-score subpopulation.
 
@@ -181,9 +182,9 @@ single_estimate['model'].summary() # OLS RegressionResults object
 matched_estimate = estimate_effects(Y = Y, D = assignments, probs = treatment_probabilities, X = control_variables, save_path = "estimated_effects.csv")
 ```
 
-##Command-Line Tool
+## Command-Line Tool
 
-###Compute Treatment Probabilities and Assignment
+### Compute Treatment Probabilities and Assignment
 The script `compute_probs.py` can also be called from the command line to compute welfare-optimal treatment probabilities. The required input is the path to a saved CSV file with WTP and PTE data, in that order, passed to `--data`. The computed probabilities will be saved to `--output`, and treatment assignments to `--assign_output`. Below is an example demonstrating all the possible parameters that can be set.
 
 ```bash
@@ -192,7 +193,7 @@ The script `compute_probs.py` can also be called from the command line to comput
   python compute_probs.py --data wtp_pte_data.csv --output computed_probs.csv --assign_output assignments.csv --capacity 100 50 50 --pbound 0.2 --error 0.1 --iterations 20 --budget 100 --subject_budgets budgets.csv --labels control t1 t2 --index
 ```
 
-###Estimate Treatment Effects
+###  Estimate Treatment Effects
 Similarly, the script `estimate_effects.py` can be called from the command line to compute treatment effects. The required inputs are the path to a saved CSV file with the experiment outcome data with the outcome variable, treatment assignments, and controls, in that order, and the path to a saved CSV file with the previously computed treatment probabilities. Below is an example demonstrating all the possible parameters that can be set.
 
 ```bash
@@ -201,9 +202,14 @@ Similarly, the script `estimate_effects.py` can be called from the command line 
   python estimate_effects.py --data outcomes.csv --probs computed_probs.csv --output est_effects.csv --control control --method matched --dindex --pindex --noverb
 ```
 
+## Further Examples 
+- [API: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/examples/Simulate_and_Estimate_API.ipynb)
+- [Command Line Tool: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/examples/Simulate_and_Estimate_CommandLine.ipynb)
+
 # Versioning
 
 # Contributing
+Please contact Richard Liu at <richard.liu@yale.edu> for details on how to contribute to this project. 
 
 # Citation
 
