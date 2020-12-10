@@ -34,6 +34,7 @@ def estimate_effects(Y: Sequence, D: Sequence, probs: Sequence, X: Sequence = No
     Returns
     -----------
     dict[str, any]
+        Dictionary containing estimated coefficients, p-values, and other relevant estimation parameters. If ``return_model`` is set to True, then the estimated model is returned as well. 
 
     """
     # Check inputs
