@@ -7,7 +7,6 @@
   - [RCTs and Welfare](#rcts-and-welfare)
   - [EXAM Pipeline](#exam-pipeline)
 - [Installation](#installation)
-  - [Requirements](#requirements)
 - [Usage](#usage)
   - [API](#python-api)
   - [Command Line](#command-line-tool)
@@ -54,8 +53,6 @@ cd mlisne
 pip install -e ./
 ```
 The installation will automatically detect whether there is a compatible GPU device on the system and install either onnxruntime or onnxruntime-gpu. Please note that the default onnxruntime GPU build requires CUDA runtime libraries being installed on the system. Please see the [onnxruntime repository](https://github.com/microsoft/onnxruntime) for more details regarding the GPU build.
-
-# Requirements
 
 # Usage
 Please see below for minimal examples of the full EXAM pipeline using the API or command-line interface.
