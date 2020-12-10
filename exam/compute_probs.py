@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 from typing import Tuple, Dict, Set, Union, Sequence, Optional
-from exam._utils import clear_market, norm_round, clear_market_new
+from exam._utils import clear_market, norm_round
 import warnings
 warnings.filterwarnings("ignore")
 
