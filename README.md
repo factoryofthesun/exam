@@ -200,8 +200,8 @@ Similarly, the script `estimate_effects.py` can be called from the command line 
 ```
 
 ## Further Examples 
-- [API: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/examples/Simulate_and_Estimate_API.ipynb)
-- [Command Line Tool: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/examples/Simulate_and_Estimate_CommandLine.ipynb)
+- [API: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/blob/master/examples/Simulate_and_Estimate_API.ipynb)
+- [Command Line Tool: Simulation and Full Pipeline](https://github.com/factoryofthesun/exam/blob/master/examples/Simulate_and_Estimate_CommandLine.ipynb)
 
 # Versioning
 
